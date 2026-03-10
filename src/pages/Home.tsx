@@ -11,6 +11,7 @@ const contactSchema = z.object({
     name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
     email: z.string().email('Por favor ingresa un correo válido'),
     message: z.string().min(10, 'El mensaje debe tener al menos 10 caracteres'),
+    _gotcha: z.string().optional(), // Honeypot trap
 });
 
 type ContactFormValues = z.infer<typeof contactSchema>;
@@ -40,15 +41,24 @@ function Home() {
     });
 
     const onSubmit = async (data: ContactFormValues) => {
+        // Check honeypot trap
+        if (data._gotcha) {
+            setSubmitSuccess(true);
+            reset();
+            setTimeout(() => setSubmitSuccess(false), 5000);
+            return;
+        }
+
         setIsSubmitting(true);
         setSubmitError(null);
         try {
+            const { _gotcha, ...submitData } = data;
             const response = await fetch(import.meta.env.VITE_FORMSPREE_ID || "https://formspree.io/f/TU_FORMSPREE_ID", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(submitData)
             });
             if (response.ok) {
                 setSubmitSuccess(true);
@@ -122,7 +132,7 @@ function Home() {
                             <a href="https://www.linkedin.com/in/exers/" target="_blank" rel="noopener noreferrer" className="social-btn" aria-label="LinkedIn">
                                 <Linkedin size={24} />
                             </a>
-                            <a href="/cv.pdf" target="_blank" className="social-btn" aria-label="Descargar CV" title="Descargar CV">
+                            <a href="/cv.pdf" target="_blank" rel="noopener noreferrer" className="social-btn" aria-label="Descargar CV" title="Descargar CV">
                                 <Download size={24} />
                             </a>
                         </div>
@@ -291,6 +301,15 @@ function Home() {
                     <div className="contact-card glass-panel reveal" ref={el => { revealRefs.current[6] = el; }}>
                         <h3 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>Enviame un mensaje</h3>
                         <form className="contact-form" onSubmit={handleSubmit(onSubmit)}>
+                            {/* Honeypot field - visually hidden, if filled, it's a bot */}
+                            <input 
+                                type="text" 
+                                {...register('_gotcha')}
+                                style={{ display: 'none' }} 
+                                tabIndex={-1} 
+                                autoComplete="off" 
+                            />
+                            
                             <div className="form-group">
                                 <label htmlFor="name">Nombre completo</label>
                                 <input
